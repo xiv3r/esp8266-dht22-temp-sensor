@@ -1,11 +1,9 @@
 name: Build ESP32 Firmware
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - 'ESP32/*.ino'
+  workflow_dispatch:
+  release:
+    types: [published]
       
 jobs:
   build-and-release:
