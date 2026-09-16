@@ -8,6 +8,7 @@ Automatically turn on and off the fan above and below 35°C using esp32 and dht2
 - F-F Dupont Wires
 
 # Firmware
+> flash the firmware to flash offset address `0x0`
 - https://github.com/xiv3r/esp8266-dht22-temp-sensor/releases/tag/esp32
   
 # Wiring Diagram
