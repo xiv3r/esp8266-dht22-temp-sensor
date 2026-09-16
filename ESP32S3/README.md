@@ -1,5 +1,5 @@
 # Functions
-Automatically turn on and off the fan above and below 35°C using esp32 and dht22 temperature humidity sensor.
+Automatically turn on and off the fan above and below 35°C using esp32s3 and dht22 temperature humidity sensor.
 
 # Requirements 
 - ESP32S3
@@ -9,7 +9,7 @@ Automatically turn on and off the fan above and below 35°C using esp32 and dht2
 
 # Firmware
 > flash the firmware to flash offset address `0x0`
-- https://github.com/xiv3r/esp8266-dht22-temp-sensor/releases/tag/esp32
+- https://github.com/xiv3r/esp8266-dht22-temp-sensor/releases/tag/esp32s3
   
 # Wiring Diagram
 ```
