@@ -28,6 +28,7 @@ jobs:
         arduino-cli core install esp8266:esp8266
 
         # DHT22 Library Install
+        arduino-cli lib install "Adafruit Unified Sensor"
         git clone https://github.com/adafruit/DHT-sensor-library.git ~/Arduino/libraries/DHT-sensor-library
         
         # Compile firmware
