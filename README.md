@@ -7,6 +7,9 @@ Automatically turn on and off the fan above and below 35°C using esp8266 and dh
 - 1 Channel Relay
 - F-F Dupont Wires
 
+# Firmware
+- https://github.com/xiv3r/esp8266-dht22-temp-sensor/releases/tag/esp8266
+
 # Wiring Diagram
 ```
 DHT 22     |  ESP8266
