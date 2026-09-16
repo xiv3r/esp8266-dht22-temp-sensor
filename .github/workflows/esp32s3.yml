@@ -1,6 +1,10 @@
 name: Build ESP32-S3 Firmware
 
-    
+on:
+  workflow_dispatch:
+  release:
+    types: [published]
+          
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -20,6 +24,11 @@ jobs:
         arduino-cli config add board_manager.additional_urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
         arduino-cli core update-index
         arduino-cli core install esp32:esp32        
+
+        # Install libraries
+        # DHT22 Library Install
+        arduino-cli lib install "Adafruit Unified Sensor"
+        git clone https://github.com/adafruit/DHT-sensor-library.git ~/Arduino/libraries/DHT-sensor-library
         
         # Compile Firmware
         cd ESP32S3
