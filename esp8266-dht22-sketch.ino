@@ -48,6 +48,8 @@ uint32_t pendingSaveAt = 0;
 const uint32_t SAVE_DEBOUNCE_MS = 15000;
 
 volatile bool g_factoryResetRequest = false;
+volatile bool g_restartAPRequest = false;
+uint32_t g_restartAPAt = 0;
 
 float g_temp = NAN;
 float g_hum = NAN;
@@ -324,7 +326,7 @@ String navBar(const String& active) {
   return n;
 }
 
-String pageShell(const String& title, const String& active, const String& body) {
+const String& pageShell(const String& title, const String& active, const String& body) {
   g_pageShell = "";
   size_t needed = body.length() + title.length() + 1200;
   g_pageShell.reserve(needed);
@@ -333,10 +335,10 @@ String pageShell(const String& title, const String& active, const String& body) 
   g_pageShell += title;
   g_pageShell += "</title><link rel='stylesheet' href='/style.css'></head><body>";
   g_pageShell += navBar(active);
+  g_pageShell += F("<script>window.__api=function(u,o){return fetch(u,o).then(function(r){return r.json()})};</script>");
   g_pageShell += "<div class='container' id='app'>";
   g_pageShell += body;
   g_pageShell += "</div><div class='footer'>ESP8266 DHT22 Controller</div><div class='toast' id='toast'></div>";
-  g_pageShell += F("<script>window.__api=function(u,o){return fetch(u,o).then(function(r){return r.json()})};</script>");
   g_pageShell += "</body></html>";
   return g_pageShell;
 }
@@ -363,17 +365,17 @@ void handleIndex() {
   body += F("function toast(m,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},2500)}");
   body += F("function ctl(u,b){window.__api(u,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(){toast('OK')}).catch(function(){toast('Failed',1)})}");
   body += F("function refresh(){window.__api('/api/status').then(function(d){");
-  body += F("document.getElementById('tempVal').textContent=d.valid?d.temp.toFixed(1):'--'");
-  body += F("document.getElementById('humVal').textContent=d.valid?d.hum.toFixed(1):'--'");
-  body += F("document.getElementById('t2').textContent=d.valid?d.temp.toFixed(2)+' C':'N/A'");
-  body += F("document.getElementById('h2').textContent=d.valid?d.hum.toFixed(2)+' %':'N/A'");
+  body += F("document.getElementById('tempVal').textContent=d.valid?d.temp.toFixed(1):'--';");
+  body += F("document.getElementById('humVal').textContent=d.valid?d.hum.toFixed(1):'--';");
+  body += F("document.getElementById('t2').textContent=d.valid?d.temp.toFixed(2)+' C':'N/A';");
+  body += F("document.getElementById('h2').textContent=d.valid?d.hum.toFixed(2)+' %':'N/A';");
   body += F("var r=document.getElementById('relayVal');r.textContent=d.relay?'ON':'OFF';");
-  body += F("document.getElementById('mRelay').className='metric '+(d.relay?'on':'off')");
-  body += F("document.getElementById('r2').textContent=d.relay?'ON':'OFF'");
+  body += F("document.getElementById('mRelay').className='metric '+(d.relay?'on':'off');");
+  body += F("document.getElementById('r2').textContent=d.relay?'ON':'OFF';");
   body += F("var s=document.getElementById('sensorVal');s.textContent=d.valid?'OK':'ERR';");
-  body += F("document.getElementById('mSensor').className='metric '+(d.valid?'on':'err')");
-  body += F("document.getElementById('up2').textContent=Math.floor(d.uptime/1000)+'s'");
-  body += F("document.getElementById('modeText').textContent='Mode: '+(d.manual?'Manual':'Auto')+' | Threshold Temp '+d.tempOn+'/'+d.tempOff+' Hum '+d.humOn+'/'+d.humOff");
+  body += F("document.getElementById('mSensor').className='metric '+(d.valid?'on':'err');");
+  body += F("document.getElementById('up2').textContent=Math.floor(d.uptime/1000)+'s';");
+  body += F("document.getElementById('modeText').textContent='Mode: '+(d.manual?'Manual':'Auto')+' | Threshold Temp '+d.tempOn+'/'+d.tempOff+' Hum '+d.humOn+'/'+d.humOff;");
   body += F("}).catch(function(){})}");
   body += F("refresh();setInterval(refresh,3000);");
   body += F("</script>");
@@ -408,7 +410,7 @@ void handleSensorsPage() {
   body += F("function save(){var b={relayMode:+document.getElementById('mode').value,");
   body += F("tempOn:+document.getElementById('tempOn').value,tempOff:+document.getElementById('tempOff').value,");
   body += F("humOn:+document.getElementById('humOn').value,humOff:+document.getElementById('humOff').value};");
-  body += F("window.__api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){toast(r.ok?'Saved':'Error',!r.ok)})}");
+  body += F("window.__api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(b)}).then(function(r){toast(r.ok?(r.adjusted?'Saved (adjusted)':'Saved'):'Error',!r.ok)})}");
   body += F("function man(s){window.__api('/api/relay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({manual:true,state:s})}).then(function(){toast('Manual '+(s?'ON':'OFF'))})}");
   body += F("function autoMode(){window.__api('/api/relay',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({auto:true})}).then(function(){toast('Auto mode')})}");
   body += F("load();");
@@ -465,13 +467,13 @@ void handleStatusPage() {
   body += F("function toast(m,e){var t=document.getElementById('toast');t.textContent=m;t.className='toast show'+(e?' err':'');setTimeout(function(){t.className='toast'},2500)}");
   body += F("function act(u){window.__api(u,{method:'POST'}).then(function(){toast('Done')})}");
   body += F("function load(){window.__api('/api/system').then(function(d){");
-  body += F("document.getElementById('up').textContent=Math.floor(d.uptime/1000)+'s'");
-  body += F("document.getElementById('heap').textContent=Math.floor(d.heap/1024)+'K'");
-  body += F("document.getElementById('frag').textContent=d.frag+'%'");
-  body += F("document.getElementById('rssi').textContent=(d.rssi===0?'N/A':d.rssi+'dBm')");
-  body += F("document.getElementById('req').textContent=d.requests");
-  body += F("document.getElementById('nvs').textContent=d.nvsWrites");
-  body += F("document.getElementById('crc').textContent=d.crcErrors");
+  body += F("document.getElementById('up').textContent=Math.floor(d.uptime/1000)+'s';");
+  body += F("document.getElementById('heap').textContent=Math.floor(d.heap/1024)+'K';");
+  body += F("document.getElementById('frag').textContent=d.frag+'%';");
+  body += F("document.getElementById('rssi').textContent=(d.rssi===0?'N/A':d.rssi+'dBm');");
+  body += F("document.getElementById('req').textContent=d.requests;");
+  body += F("document.getElementById('nvs').textContent=d.nvsWrites;");
+  body += F("document.getElementById('crc').textContent=d.crcErrors;");
   body += F("document.getElementById('wc').textContent=d.clients;})}");
   body += F("load();setInterval(load,4000);");
   body += F("</script>");
@@ -516,7 +518,11 @@ void handleApiConfig() {
     }
     if (doc.containsKey("relayMode")) {
       int m = doc["relayMode"];
-      if (m >= 0 && m <= 3) cfg.relayMode = m;
+      if (m < 0 || m > 3) {
+        sendJSON(400, "{\"ok\":false,\"err\":\"relayMode\"}");
+        return;
+      }
+      cfg.relayMode = m;
     }
     if (doc.containsKey("tempOn")) cfg.tempOn = doc["tempOn"];
     if (doc.containsKey("tempOff")) cfg.tempOff = doc["tempOff"];
@@ -530,42 +536,73 @@ void handleApiConfig() {
     if (cfg.humOn > 100) cfg.humOn = 100;
     if (cfg.humOff < 0) cfg.humOff = 0;
     if (cfg.humOff > 100) cfg.humOff = 100;
+    bool warnSwap = false;
     if (cfg.tempOn < cfg.tempOff) {
       float x = cfg.tempOn; cfg.tempOn = cfg.tempOff; cfg.tempOff = x;
+      warnSwap = true;
     }
     if (cfg.humOn < cfg.humOff) {
       float x = cfg.humOn; cfg.humOn = cfg.humOff; cfg.humOff = x;
+      warnSwap = true;
+    }
+    const float TEMP_MIN_GAP = 0.5f;
+    const float HUM_MIN_GAP  = 1.0f;
+    if (cfg.tempOn - cfg.tempOff < TEMP_MIN_GAP) {
+      cfg.tempOff = cfg.tempOn - TEMP_MIN_GAP;
+      if (cfg.tempOff < -40.0f) { cfg.tempOff = -40.0f; cfg.tempOn = cfg.tempOff + TEMP_MIN_GAP; }
+      warnSwap = true;
+    }
+    if (cfg.humOn - cfg.humOff < HUM_MIN_GAP) {
+      cfg.humOff = cfg.humOn - HUM_MIN_GAP;
+      if (cfg.humOff < 0.0f) { cfg.humOff = 0.0f; cfg.humOn = cfg.humOff + HUM_MIN_GAP; }
+      warnSwap = true;
     }
     scheduleSave();
-    sendJSON(200, "{\"ok\":true}");
+    if (warnSwap) sendJSON(200, "{\"ok\":true,\"adjusted\":true}");
+    else          sendJSON(200, "{\"ok\":true}");
     return;
   }
   sendJSON(400, "{\"ok\":false}");
 }
 
 void handleApiRelay() {
-  if (server.method() != HTTP_POST) { sendJSON(405, "{\"ok\":false}"); return; }
+  if (server.method() != HTTP_POST) {
+    g_requestCount++;
+    addCommonHeaders();
+    server.sendHeader("Allow", "POST");
+    server.sendHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    server.send(405, "application/json", "{\"ok\":false}");
+    return;
+  }
   if (server.hasArg("plain")) {
     StaticJsonDocument<128> doc;
     if (deserializeJson(doc, server.arg("plain"))) {
       sendJSON(400, "{\"ok\":false,\"err\":\"json\"}");
       return;
     }
+    bool acted = false;
     if (doc.containsKey("auto")) {
       cfg.relayManual = 0;
       scheduleSave();
+      acted = true;
     } else if (doc.containsKey("manual")) {
       cfg.relayManual = 1;
       bool s = doc["state"] | false;
       cfg.relayState = s ? 1 : 0;
       applyRelay(s);
       scheduleSave();
+      acted = true;
     } else if (doc.containsKey("state")) {
       bool s = doc["state"];
       cfg.relayManual = 1;
       cfg.relayState = s ? 1 : 0;
       applyRelay(s);
       scheduleSave();
+      acted = true;
+    }
+    if (!acted) {
+      sendJSON(400, "{\"ok\":false,\"err\":\"noop\"}");
+      return;
     }
     sendJSON(200, "{\"ok\":true}");
     return;
@@ -597,17 +634,15 @@ void handleApiWifi() {
     bool allSpace = true;
     for (size_t i = 0; i < sl; i++) { if (ssid[i] != ' ') { allSpace = false; break; } }
     if (allSpace) { sendJSON(400, "{\"ok\":false,\"err\":\"ssid\"}"); return; }
-    if (pl < 8 || pl > WIFI_PASS_MAX) { sendJSON(400, "{\"ok\":false,\"err\":\"pass\"}"); return; }
+    if (pl < 8 || pl > 63) { sendJSON(400, "{\"ok\":false,\"err\":\"pass\"}"); return; }
     memset(cfg.ssid, 0, sizeof(cfg.ssid));
     memset(cfg.password, 0, sizeof(cfg.password));
     strncpy(cfg.ssid, ssid, WIFI_SSID_MAX);
     strncpy(cfg.password, pass, WIFI_PASS_MAX);
     saveConfigNow();
     sendJSON(200, "{\"ok\":true}");
-    delay(200);
-    WiFi.softAPdisconnect(true);
-    delay(100);
-    startWiFiAP();
+    g_restartAPRequest = true;
+    g_restartAPAt = millis() + 500;
     return;
   }
   sendJSON(400, "{\"ok\":false}");
@@ -720,6 +755,13 @@ void loop() {
   if (g_factoryResetRequest) {
     g_factoryResetRequest = false;
     performFactoryReset();
+  }
+
+  if (g_restartAPRequest && (int32_t)(millis() - g_restartAPAt) >= 0) {
+    g_restartAPRequest = false;
+    WiFi.softAPdisconnect(true);
+    delay(100);
+    startWiFiAP();
   }
 
   readDHTSafe();
