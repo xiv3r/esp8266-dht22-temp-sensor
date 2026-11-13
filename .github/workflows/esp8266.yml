@@ -26,11 +26,11 @@ jobs:
         arduino-cli config add board_manager.additional_urls https://arduino.esp8266.com/stable/package_esp8266com_index.json
         arduino-cli core update-index
         arduino-cli core install esp8266:esp8266
-
-        # DHT22 Library Install
-        arduino-cli lib install "Adafruit Unified Sensor"
-        git clone https://github.com/adafruit/DHT-sensor-library.git ~/Arduino/libraries/DHT-sensor-library
         
+        arduino-cli lib install "DHT sensor library"
+        arduino-cli lib install "Adafruit Unified Sensor"
+        arduino-cli lib install "ArduinoJson"
+
         # Compile firmware
         mv *.ino esp8266-dht22-temp-sensor.ino
         arduino-cli compile --fqbn esp8266:esp8266:nodemcuv2 --clean --output-dir firmware .
