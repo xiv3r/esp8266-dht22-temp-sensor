@@ -327,7 +327,7 @@ String navBar(const String& active) {
 String pageShell(const String& title, const String& active, const String& body) {
   g_pageShell = "";
   size_t needed = body.length() + title.length() + 1200;
-  if (g_pageShell.capacity() < needed) g_pageShell.reserve(needed);
+  g_pageShell.reserve(needed);
   g_pageShell += F("<!DOCTYPE html><html lang='en'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'>");
   g_pageShell += "<title>";
   g_pageShell += title;
